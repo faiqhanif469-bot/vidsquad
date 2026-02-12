@@ -86,17 +86,25 @@ def run_full_pipeline(self, job_id: str, user_id: str, script: str, duration: in
         
         searcher = FastVideoSearch()
         
+        # Run async search in sync context
+        import asyncio
+        
         for scene in plan.get('scenes', []):
             for query_obj in scene.get('search_queries', []):
                 query = query_obj.get('query', '')
                 if not query:
                     continue
                 
-                results = searcher.intelligent_search(
-                    query=query,
-                    context=scene.get('visual_context', ''),
-                    platforms=['youtube']
-                )
+                try:
+                    # Run async search
+                    results = asyncio.run(searcher.intelligent_search(
+                        query=query,
+                        context=scene.get('visual_context', ''),
+                        platforms=['youtube']
+                    ))
+                except Exception as e:
+                    print(f"Search error: {e}")
+                    results = []
                 
                 query_obj['results_found'] = len(results)
                 query_obj['sample_videos'] = [
