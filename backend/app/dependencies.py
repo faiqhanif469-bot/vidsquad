@@ -13,15 +13,21 @@ from functools import wraps
 import time
 
 # Initialize Firebase
+firebase_initialized = False
+db = None
+
 if settings.FIREBASE_CREDENTIALS_PATH:
-    cred = credentials.Certificate(settings.FIREBASE_CREDENTIALS_PATH)
-    firebase_admin.initialize_app(cred)
+    try:
+        cred = credentials.Certificate(settings.FIREBASE_CREDENTIALS_PATH)
+        firebase_admin.initialize_app(cred)
+        db = firestore.client()
+        firebase_initialized = True
+    except Exception as e:
+        print(f"Warning: Firebase initialization failed: {e}")
+        print("Running without Firebase authentication")
 
 # Initialize Redis
 redis_client = redis.from_url(settings.REDIS_URL)
-
-# Firestore client
-db = firestore.client()
 
 
 async def verify_firebase_token(authorization: Optional[str] = Header(None)) -> dict:
