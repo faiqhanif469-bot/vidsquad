@@ -61,69 +61,6 @@ export default function App() {
     try {
       setError('');
       
-      // Simulate backend call - remove this and uncomment real API call when backend is ready
-      const mockJobId = 'test-job-' + Date.now();
-      
-      // Initialize job data
-      setJobData({
-        jobId: mockJobId,
-        status: 'processing',
-        progress: 0,
-        currentStep: 'Starting...',
-      });
-      
-      // Move to progress screen
-      setCurrentScreen('progress');
-      
-      // Simulate progress updates
-      let currentProgress = 0;
-      const progressInterval = setInterval(() => {
-        currentProgress += 5;
-        
-        if (currentProgress <= 100) {
-          const steps = [
-            'Analyzing script...',
-            'Generating scene breakdown...',
-            'Searching for video clips...',
-            'Generating AI images...',
-            'Processing media assets...',
-            'Creating timeline...',
-            'Finalizing exports...',
-            'Complete!'
-          ];
-          
-          const stepIndex = Math.floor((currentProgress / 100) * steps.length);
-          const currentStepText = steps[Math.min(stepIndex, steps.length - 1)];
-          
-          setJobData({
-            jobId: mockJobId,
-            status: currentProgress >= 100 ? 'completed' : 'processing',
-            progress: currentProgress,
-            currentStep: currentStepText,
-            etaSeconds: Math.max(0, Math.floor((100 - currentProgress) * 2)),
-            result: currentProgress >= 100 ? {
-              premiere_url: 'https://example.com/premiere.zip',
-              capcut_url: 'https://example.com/capcut.zip',
-              clips_count: 15,
-              images_count: 8,
-              expires_at: new Date(Date.now() + 20 * 60 * 1000).toISOString(),
-            } : undefined,
-          });
-          
-          if (currentProgress >= 100) {
-            clearInterval(progressInterval);
-            setTimeout(() => {
-              setCurrentScreen('download');
-            }, 1000);
-          }
-        }
-      }, 1000); // Update every second
-      
-      // Cleanup on unmount
-      return () => clearInterval(progressInterval);
-      
-      /* UNCOMMENT THIS WHEN BACKEND IS READY:
-      
       // Convert duration string to seconds
       const durationMap: { [key: string]: number } = {
         '6-9': 450,      // 7.5 minutes
@@ -179,8 +116,6 @@ export default function App() {
       
       // Cleanup on unmount
       return () => clearInterval(pollInterval);
-      
-      */
       
     } catch (err: any) {
       console.error('Error starting video generation:', err);
