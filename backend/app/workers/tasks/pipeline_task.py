@@ -128,21 +128,44 @@ def run_full_pipeline(self, job_id: str, user_id: str, script: str, duration: in
                 except json.JSONDecodeError:
                     print("JSON parse error (method 2): Still invalid")
         
-        # If still no plan, create a simple fallback
+        # If still no plan, create a simple fallback based on the script
         if not plan:
-            print("Creating fallback plan with 6 scenes")
+            print("Creating fallback plan from script")
+            
+            # Split script into sentences for scenes
+            sentences = [s.strip() for s in script.split('.') if s.strip()]
+            num_scenes = min(len(sentences), 12)  # Max 12 scenes
+            
+            if num_scenes < 6:
+                num_scenes = 6  # Minimum 6 scenes
+            
             plan = {
                 'title': 'AI Generated Video',
-                'scenes': [
-                    {
-                        'scene_number': i,
-                        'scene_description': f'Scene {i}',
-                        'duration': 5,
-                        'search_queries': []
-                    }
-                    for i in range(1, 7)
-                ]
+                'scenes': []
             }
+            
+            for i in range(num_scenes):
+                # Use script sentences or generic descriptions
+                if i < len(sentences):
+                    scene_desc = sentences[i]
+                else:
+                    scene_desc = f"Scene {i+1} from the video"
+                
+                # Extract keywords from description
+                words = scene_desc.lower().split()
+                keywords = [w for w in words if len(w) > 4][:5]  # Top 5 long words
+                
+                plan['scenes'].append({
+                    'scene_number': i + 1,
+                    'scene_description': scene_desc,
+                    'duration': 5,
+                    'visual_context': scene_desc,
+                    'mood_tone': 'informative, engaging',
+                    'keywords': keywords,
+                    'search_queries': []  # No video search for fallback
+                })
+            
+            print(f"Created fallback plan with {num_scenes} scenes")
         
         update_job_progress(job_id, 'processing', 20, 'Script analyzed', 180)
         
