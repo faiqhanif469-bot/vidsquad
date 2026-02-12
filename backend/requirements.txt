@@ -22,6 +22,7 @@ Pillow==10.1.0
 yt-dlp==2023.12.30
 crewai==0.1.0
 groq==0.4.0
+langchain-groq==0.1.0
 
 # Additional
 aiofiles==23.2.1
