@@ -21,13 +21,17 @@ from src.tools.flux_generator import integrate_with_image_fallback
 from src.tools.premiere_exporter import PremiereExporter
 from src.tools.capcut_exporter import CapCutExporter
 from app.services.storage_service import StorageService
+from app.dependencies import db
 
-db = firestore.client()
 storage_service = StorageService()
 
 
 def update_job_progress(job_id: str, status: str, progress: int, current_step: str = None, eta_seconds: int = None):
     """Update job progress in Firestore"""
+    if db is None:
+        print(f"Progress: {progress}% - {current_step or status}")
+        return
+    
     project_ref = db.collection('projects').document(job_id)
     update_data = {
         'status': status,
@@ -200,27 +204,28 @@ def run_full_pipeline(self, job_id: str, user_id: str, script: str, duration: in
         expires_at = datetime.utcnow() + timedelta(minutes=20)
         
         # Update job as completed
-        project_ref = db.collection('projects').document(job_id)
-        project_ref.update({
-            'status': 'completed',
-            'progress': 100,
-            'current_step': 'Completed',
-            'result': {
-                'premiere_url': premiere_url,
-                'capcut_url': capcut_url,
-                'clips_count': len(extracted_clips),
-                'images_count': result.get('generated_images', 0),
-                'expires_at': expires_at.isoformat()
-            },
-            'completed_at': firestore.SERVER_TIMESTAMP,
-            'updated_at': firestore.SERVER_TIMESTAMP
-        })
-        
-        # Increment user's video count
-        user_ref = db.collection('users').document(user_id)
-        user_ref.update({
-            'videos_created_this_month': firestore.Increment(1)
-        })
+        if db is not None:
+            project_ref = db.collection('projects').document(job_id)
+            project_ref.update({
+                'status': 'completed',
+                'progress': 100,
+                'current_step': 'Completed',
+                'result': {
+                    'premiere_url': premiere_url,
+                    'capcut_url': capcut_url,
+                    'clips_count': len(extracted_clips),
+                    'images_count': result.get('generated_images', 0),
+                    'expires_at': expires_at.isoformat()
+                },
+                'completed_at': firestore.SERVER_TIMESTAMP,
+                'updated_at': firestore.SERVER_TIMESTAMP
+            })
+            
+            # Increment user's video count
+            user_ref = db.collection('users').document(user_id)
+            user_ref.update({
+                'videos_created_this_month': firestore.Increment(1)
+            })
         
         # Schedule cleanup
         from app.workers.tasks.cleanup_task import cleanup_job
@@ -235,11 +240,12 @@ def run_full_pipeline(self, job_id: str, user_id: str, script: str, duration: in
     
     except Exception as e:
         # Update job as failed
-        project_ref = db.collection('projects').document(job_id)
-        project_ref.update({
-            'status': 'failed',
-            'error': str(e),
-            'updated_at': firestore.SERVER_TIMESTAMP
-        })
+        if db is not None:
+            project_ref = db.collection('projects').document(job_id)
+            project_ref.update({
+                'status': 'failed',
+                'error': str(e),
+                'updated_at': firestore.SERVER_TIMESTAMP
+            })
         
         raise
