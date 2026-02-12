@@ -12,9 +12,10 @@ from app.services.queue_service import QueueService
 from firebase_admin import firestore
 import uuid
 
+from app.dependencies import db
+
 router = APIRouter()
 queue_service = QueueService()
-db = firestore.client()
 
 
 class VideoGenerationRequest(BaseModel):

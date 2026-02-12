@@ -6,8 +6,9 @@ from fastapi import APIRouter, Depends, HTTPException
 from app.dependencies import get_current_user
 from firebase_admin import firestore
 
+from app.dependencies import db
+
 router = APIRouter()
-db = firestore.client()
 
 
 @router.get("/")

@@ -7,8 +7,9 @@ from firebase_admin import firestore
 import asyncio
 import json
 
+from app.dependencies import db
+
 router = APIRouter()
-db = firestore.client()
 
 
 @router.websocket("/progress/{job_id}")
