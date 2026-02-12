@@ -109,7 +109,26 @@ async def get_job_status(job_id: str):
     - result: Download links (when completed)
     """
     try:
-        # Try Firestore first (if available)
+        # Try Redis first (fastest, always available)
+        import redis
+        from app.config import settings
+        
+        redis_client = redis.from_url(settings.REDIS_URL, decode_responses=True)
+        progress_json = redis_client.get(f"job_progress:{job_id}")
+        
+        if progress_json:
+            import json
+            progress_data = json.loads(progress_json)
+            
+            # Check if completed, get result from Redis
+            if progress_data.get('status') == 'completed':
+                result_json = redis_client.get(f"job_result:{job_id}")
+                if result_json:
+                    progress_data['result'] = json.loads(result_json)
+            
+            return progress_data
+        
+        # Fallback to Firestore (if available)
         if db is not None:
             project_ref = db.collection('projects').document(job_id)
             project = project_ref.get()
@@ -127,12 +146,9 @@ async def get_job_status(job_id: str):
                     'result': project_data.get('result')
                 }
         
-        # Fallback: Check Celery task status directly
-        # Get task_id from Redis or return generic processing status
+        # Last resort: Check Celery task status
         from app.workers.celery_app import celery_app
         
-        # Try to find task by scanning recent tasks
-        # This is a workaround since we don't have Firebase to store task_id
         inspect = celery_app.control.inspect()
         
         # Check active tasks
@@ -144,7 +160,7 @@ async def get_job_status(job_id: str):
                         return {
                             'job_id': job_id,
                             'status': 'processing',
-                            'progress': 50,  # Generic progress
+                            'progress': 50,
                             'current_step': 'Processing video...',
                             'eta_seconds': 60
                         }
@@ -163,16 +179,11 @@ async def get_job_status(job_id: str):
                             'eta_seconds': 120
                         }
         
-        # If not found in active or reserved, assume completed or failed
-        # Return a generic "processing" status
-        return {
-            'job_id': job_id,
-            'status': 'processing',
-            'progress': 75,
-            'current_step': 'Finalizing...',
-            'eta_seconds': 30
-        }
+        # Not found - might be completed or very old
+        raise HTTPException(status_code=404, detail="Job not found")
     
+    except HTTPException:
+        raise
     except Exception as e:
         # Return generic processing status on error
         return {

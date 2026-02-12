@@ -8,6 +8,8 @@ from firebase_admin import firestore
 from datetime import datetime, timedelta
 import sys
 import os
+import redis
+import json
 
 # Add parent directory to path to import src modules
 sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(__file__)))))
@@ -22,29 +24,55 @@ from src.tools.premiere_exporter import PremiereExporter
 from src.tools.capcut_exporter import CapCutExporter
 from app.services.storage_service import StorageService
 from app.dependencies import db
+from app.config import settings
 
 storage_service = StorageService()
 
+# Redis client for progress tracking
+redis_client = redis.from_url(settings.REDIS_URL, decode_responses=True)
+
 
 def update_job_progress(job_id: str, status: str, progress: int, current_step: str = None, eta_seconds: int = None):
-    """Update job progress in Firestore"""
-    if db is None:
-        print(f"Progress: {progress}% - {current_step or status}")
-        return
+    """Update job progress in Redis and Firestore"""
     
-    project_ref = db.collection('projects').document(job_id)
-    update_data = {
+    # Update Redis (always available)
+    progress_data = {
+        'job_id': job_id,
         'status': status,
         'progress': progress,
-        'updated_at': firestore.SERVER_TIMESTAMP
+        'current_step': current_step or status,
+        'eta_seconds': eta_seconds or 0,
+        'updated_at': datetime.utcnow().isoformat()
     }
     
-    if current_step:
-        update_data['current_step'] = current_step
-    if eta_seconds:
-        update_data['eta_seconds'] = eta_seconds
+    # Store in Redis with 1 hour expiration
+    redis_client.setex(
+        f"job_progress:{job_id}",
+        3600,  # 1 hour TTL
+        json.dumps(progress_data)
+    )
     
-    project_ref.update(update_data)
+    # Also update Firestore if available
+    if db is not None:
+        project_ref = db.collection('projects').document(job_id)
+        update_data = {
+            'status': status,
+            'progress': progress,
+            'updated_at': firestore.SERVER_TIMESTAMP
+        }
+        
+        if current_step:
+            update_data['current_step'] = current_step
+        if eta_seconds:
+            update_data['eta_seconds'] = eta_seconds
+        
+        try:
+            project_ref.update(update_data)
+        except:
+            pass  # Ignore Firestore errors
+    
+    # Print for logs
+    print(f"Progress: {progress}% - {current_step or status}")
 
 
 @celery_app.task(bind=True, name='run_full_pipeline')
@@ -211,29 +239,45 @@ def run_full_pipeline(self, job_id: str, user_id: str, script: str, duration: in
         # Schedule cleanup (20 minutes)
         expires_at = datetime.utcnow() + timedelta(minutes=20)
         
-        # Update job as completed
+        # Prepare result data
+        result_data = {
+            'premiere_url': premiere_url,
+            'capcut_url': capcut_url,
+            'clips_count': len(extracted_clips),
+            'images_count': result.get('generated_images', 0),
+            'expires_at': expires_at.isoformat()
+        }
+        
+        # Store result in Redis (1 hour TTL)
+        redis_client.setex(
+            f"job_result:{job_id}",
+            3600,
+            json.dumps(result_data)
+        )
+        
+        # Update progress to completed
+        update_job_progress(job_id, 'completed', 100, 'Completed!', 0)
+        
+        # Update job as completed in Firestore (if available)
         if db is not None:
-            project_ref = db.collection('projects').document(job_id)
-            project_ref.update({
-                'status': 'completed',
-                'progress': 100,
-                'current_step': 'Completed',
-                'result': {
-                    'premiere_url': premiere_url,
-                    'capcut_url': capcut_url,
-                    'clips_count': len(extracted_clips),
-                    'images_count': result.get('generated_images', 0),
-                    'expires_at': expires_at.isoformat()
-                },
-                'completed_at': firestore.SERVER_TIMESTAMP,
-                'updated_at': firestore.SERVER_TIMESTAMP
-            })
-            
-            # Increment user's video count
-            user_ref = db.collection('users').document(user_id)
-            user_ref.update({
-                'videos_created_this_month': firestore.Increment(1)
-            })
+            try:
+                project_ref = db.collection('projects').document(job_id)
+                project_ref.update({
+                    'status': 'completed',
+                    'progress': 100,
+                    'current_step': 'Completed',
+                    'result': result_data,
+                    'completed_at': firestore.SERVER_TIMESTAMP,
+                    'updated_at': firestore.SERVER_TIMESTAMP
+                })
+                
+                # Increment user's video count
+                user_ref = db.collection('users').document(user_id)
+                user_ref.update({
+                    'videos_created_this_month': firestore.Increment(1)
+                })
+            except:
+                pass  # Ignore Firestore errors
         
         # TODO: Schedule cleanup after 20 minutes (implement later)
         
@@ -245,11 +289,27 @@ def run_full_pipeline(self, job_id: str, user_id: str, script: str, duration: in
         }
     
     except Exception as e:
-        # Update job as failed
-        if db is not None:
-            project_ref = db.collection('projects').document(job_id)
-            project_ref.update({
+        # Update job as failed in Redis
+        error_msg = str(e)
+        redis_client.setex(
+            f"job_progress:{job_id}",
+            3600,
+            json.dumps({
+                'job_id': job_id,
                 'status': 'failed',
+                'progress': 0,
+                'current_step': 'Failed',
+                'error': error_msg,
+                'updated_at': datetime.utcnow().isoformat()
+            })
+        )
+        
+        # Update job as failed in Firestore (if available)
+        if db is not None:
+            try:
+                project_ref = db.collection('projects').document(job_id)
+                project_ref.update({
+                    'status': 'failed',
                 'error': str(e),
                 'updated_at': firestore.SERVER_TIMESTAMP
             })
