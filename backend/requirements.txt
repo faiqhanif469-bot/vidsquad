@@ -21,7 +21,7 @@ requests==2.31.0
 Pillow==10.1.0
 yt-dlp==2023.12.30
 crewai==0.80.0
-crewai-tools==0.12.0
+crewai-tools==0.14.0
 groq==0.4.0
 langchain-groq==0.2.0
 langchain==0.3.0
