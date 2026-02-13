@@ -172,38 +172,46 @@ def run_full_pipeline(self, job_id: str, user_id: str, script: str, duration: in
         # STEP 2: Video Search
         update_job_progress(job_id, 'processing', 30, 'Searching for videos...', 150)
         
-        searcher = FastVideoSearch()
+        # Use channel-based search (bypasses YouTube bot detection)
+        from src.tools.channel_video_finder import ChannelVideoFinder
         
-        # Run async search in sync context
-        import asyncio
+        channel_finder = ChannelVideoFinder()
         
         for scene in plan.get('scenes', []):
-            for query_obj in scene.get('search_queries', []):
-                query = query_obj.get('query', '')
-                if not query:
-                    continue
+            # Generate search query from scene description and keywords
+            scene_desc = scene.get('scene_description', '')
+            keywords = scene.get('keywords', [])
+            
+            # Create search query
+            if keywords:
+                query = ' '.join(keywords[:3])  # Use top 3 keywords
+            else:
+                query = scene_desc[:50]  # Use first 50 chars of description
+            
+            try:
+                # Search through curated channels
+                results = channel_finder.search(query, max_results=5)
                 
-                try:
-                    # Run async search
-                    results = asyncio.run(searcher.intelligent_search(
-                        query=query,
-                        context=scene.get('visual_context', ''),
-                        platforms=['youtube']
-                    ))
-                except Exception as e:
-                    print(f"Search error: {e}")
-                    results = []
+                # Add results to scene
+                if 'search_queries' not in scene:
+                    scene['search_queries'] = []
                 
-                query_obj['results_found'] = len(results)
-                query_obj['sample_videos'] = [
-                    {
-                        'title': r['title'],
-                        'url': r['url'],
-                        'duration': r['duration'],
-                        'relevance_score': round(r['relevance_score'], 2)
-                    }
-                    for r in results[:3]
-                ]
+                scene['search_queries'].append({
+                    'query': query,
+                    'results_found': len(results),
+                    'sample_videos': [
+                        {
+                            'title': r.title,
+                            'url': r.url,
+                            'duration': r.duration,
+                            'relevance_score': 0.8  # Channel videos are pre-vetted
+                        }
+                        for r in results[:3]
+                    ]
+                })
+            except Exception as e:
+                print(f"Search error for scene {scene.get('scene_number')}: {e}")
+                continue
         
         update_job_progress(job_id, 'processing', 40, 'Videos found', 120)
         
