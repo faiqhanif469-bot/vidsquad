@@ -74,7 +74,7 @@ class VideoDownloader:
                     },
                     
                     # Enable remote challenge solver scripts for Deno
-                    'remote_components': 'ejs:github',
+                    'remote_components': ['ejs:github'],
                     
                     # Use cookies for authentication
                     'cookiefile': cookie.path if cookie else None,
@@ -173,7 +173,7 @@ class VideoDownloader:
                     },
                     
                     # Enable remote challenge solver scripts for Deno
-                    'remote_components': 'ejs:github',
+                    'remote_components': ['ejs:github'],
                     
                     # Use cookies for authentication
                     'cookiefile': cookie_path if cookie_path else None,
