@@ -65,16 +65,20 @@ class VideoDownloader:
                     'quiet': False,
                     'no_warnings': False,
                     
-                    # BYPASS N-CHALLENGE: Use Android client (doesn't support cookies but bypasses n-challenge)
-                    'extractor_args': {'youtube': {'player_client': ['android']}},
+                    # BYPASS BOT DETECTION: Try multiple client strategies
+                    # tv_embedded works best for avoiding bot detection
+                    'extractor_args': {'youtube': {'player_client': ['tv_embedded', 'web']}},
+                    
+                    # Use cookies for authentication
+                    'cookiefile': cookie.path if cookie else None,
                     
                     # Additional options to avoid detection
                     'user_agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
                     'referer': 'https://www.youtube.com/',
                     
                     # Rate limiting
-                    'sleep_interval': random.uniform(1, 3),
-                    'max_sleep_interval': 5,
+                    'sleep_interval': random.uniform(2, 4),
+                    'max_sleep_interval': 8,
                     
                     # Retry settings
                     'retries': 2,
@@ -152,8 +156,12 @@ class VideoDownloader:
                     'quiet': False,
                     'no_warnings': False,
                     
-                    # BYPASS N-CHALLENGE: Use Android client (doesn't support cookies but bypasses n-challenge)
-                    'extractor_args': {'youtube': {'player_client': ['android']}},
+                    # BYPASS BOT DETECTION: Try multiple client strategies
+                    # tv_embedded works best for avoiding bot detection
+                    'extractor_args': {'youtube': {'player_client': ['tv_embedded', 'web']}},
+                    
+                    # Use cookies for authentication
+                    'cookiefile': cookie_path if cookie_path else None,
                     
                     'user_agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
                     'referer': 'https://www.youtube.com/',
