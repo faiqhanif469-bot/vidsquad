@@ -64,9 +64,8 @@ class VideoDownloader:
                     'outtmpl': str(output_path),
                     'quiet': False,
                     'no_warnings': False,
-                    'cookiefile': cookie.path,  # Use cookie file
                     
-                    # BYPASS N-CHALLENGE: Use Android client to avoid JavaScript challenge
+                    # BYPASS N-CHALLENGE: Use Android client (doesn't support cookies but bypasses n-challenge)
                     'extractor_args': {'youtube': {'player_client': ['android']}},
                     
                     # Additional options to avoid detection
@@ -81,6 +80,8 @@ class VideoDownloader:
                     'retries': 2,
                     'fragment_retries': 2,
                 }
+                
+                # Don't use cookies with Android client (not supported)
                 
                 with yt_dlp.YoutubeDL(ydl_opts) as ydl:
                     ydl.download([video.url])
@@ -151,7 +152,7 @@ class VideoDownloader:
                     'quiet': False,
                     'no_warnings': False,
                     
-                    # BYPASS N-CHALLENGE: Use Android client to avoid JavaScript challenge
+                    # BYPASS N-CHALLENGE: Use Android client (doesn't support cookies but bypasses n-challenge)
                     'extractor_args': {'youtube': {'player_client': ['android']}},
                     
                     'user_agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
@@ -169,8 +170,9 @@ class VideoDownloader:
                     'http_chunk_size': 10485760,  # 10MB chunks
                 }
                 
-                if cookie_path:
-                    ydl_opts['cookiefile'] = cookie_path
+                # Don't use cookies with Android client (not supported)
+                # if cookie_path:
+                #     ydl_opts['cookiefile'] = cookie_path
                 
                 with yt_dlp.YoutubeDL(ydl_opts) as ydl:
                     info = ydl.extract_info(url, download=True)
