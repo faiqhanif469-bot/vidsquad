@@ -49,6 +49,7 @@ services:
     volumes:
       - ./:/app
       - ../src:/app/src
+      - ../cookies:/app/cookies:ro
       - ./temp:/app/temp
     depends_on:
       - redis
