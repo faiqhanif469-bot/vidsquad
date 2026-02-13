@@ -206,15 +206,15 @@ def run_full_pipeline(self, job_id: str, user_id: str, script: str, duration: in
         
         update_job_progress(job_id, 'processing', 40, 'Videos found', 120)
         
-        # STEP 3: Download & Extract Clips
-        update_job_progress(job_id, 'processing', 50, 'Downloading videos...', 90)
+        # STEP 3: Download & Extract Clips (Direct extraction without full download)
+        update_job_progress(job_id, 'processing', 50, 'Extracting clips...', 90)
         
         downloader = VideoDownloader()
-        extractor = BRollExtractor()
         extracted_clips = []
         
         for scene in plan.get('scenes', []):
             scene_num = scene.get('scene_number')
+            scene_duration = scene.get('duration', 5)
             
             # Get best video
             best_video = None
@@ -228,20 +228,13 @@ def run_full_pipeline(self, job_id: str, user_id: str, script: str, duration: in
                 continue
             
             try:
-                # Download
-                video_path = downloader.download(
+                # Extract clip directly without downloading full video
+                clip_filename = f"scene_{scene_num:03d}.mp4"
+                clip_path = downloader.download_clip(
                     url=best_video['url'],
-                    output_dir=f"{output_dir}/downloads"
-                )
-                
-                if not video_path:
-                    continue
-                
-                # Extract clip
-                clip_path = extractor.extract_best_clip(
-                    video_path=video_path,
-                    duration=scene.get('duration', 5),
-                    output_dir=f"{output_dir}/clips"
+                    start_time=0,  # 0 = random start time
+                    duration=scene_duration,
+                    output_path=f"{output_dir}/clips/{clip_filename}"
                 )
                 
                 if clip_path:
@@ -251,7 +244,8 @@ def run_full_pipeline(self, job_id: str, user_id: str, script: str, duration: in
                         'path': clip_path,
                         'source_url': best_video['url']
                     })
-            except:
+            except Exception as e:
+                print(f"Error extracting clip for scene {scene_num}: {e}")
                 continue
         
         update_job_progress(job_id, 'processing', 60, f'{len(extracted_clips)} clips extracted', 60)
