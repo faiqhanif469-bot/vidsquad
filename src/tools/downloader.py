@@ -149,8 +149,17 @@ class VideoDownloader:
                     'no_warnings': False,
                     'user_agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
                     'referer': 'https://www.youtube.com/',
-                    'sleep_interval': random.uniform(1, 3),
-                    'retries': 2,
+                    'sleep_interval': random.uniform(2, 5),  # Increased delay
+                    'max_sleep_interval': 10,  # Increased max delay
+                    'sleep_interval_requests': 2,  # Delay between requests
+                    'sleep_interval_subtitles': 2,  # Delay for subtitles
+                    'retries': 3,
+                    'fragment_retries': 3,
+                    'extractor_retries': 3,
+                    # Additional anti-detection options
+                    'nocheckcertificate': True,
+                    'prefer_insecure': False,
+                    'http_chunk_size': 10485760,  # 10MB chunks
                 }
                 
                 if cookie_path:

@@ -70,7 +70,7 @@ class CookieManager:
         # Configuration
         self.block_duration = 300  # 5 minutes block after failures
         self.max_fails_before_block = 3  # Block after 3 consecutive fails
-        self.min_delay_between_uses = 2  # Minimum 2 seconds between uses
+        self.min_delay_between_uses = 5  # Minimum 5 seconds between uses (increased)
         
         # Load all cookie files
         self._load_cookies()
