@@ -66,6 +66,9 @@ class VideoDownloader:
                     'no_warnings': False,
                     'cookiefile': cookie.path,  # Use cookie file
                     
+                    # BYPASS N-CHALLENGE: Use Android client to avoid JavaScript challenge
+                    'extractor_args': {'youtube': {'player_client': ['android']}},
+                    
                     # Additional options to avoid detection
                     'user_agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
                     'referer': 'https://www.youtube.com/',
@@ -147,6 +150,10 @@ class VideoDownloader:
                     'outtmpl': str(output_path / '%(id)s.%(ext)s'),
                     'quiet': False,
                     'no_warnings': False,
+                    
+                    # BYPASS N-CHALLENGE: Use Android client to avoid JavaScript challenge
+                    'extractor_args': {'youtube': {'player_client': ['android']}},
+                    
                     'user_agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
                     'referer': 'https://www.youtube.com/',
                     'sleep_interval': random.uniform(2, 5),  # Increased delay
