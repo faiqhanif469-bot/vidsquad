@@ -206,17 +206,19 @@ def run_full_pipeline(self, job_id: str, user_id: str, script: str, duration: in
         
         update_job_progress(job_id, 'processing', 40, 'Videos found', 120)
         
-        # STEP 3: Extract Clips (Direct extraction without full download)
-        update_job_progress(job_id, 'processing', 50, 'Extracting clips...', 90)
+        # STEP 3: Extract Clips (PARALLEL extraction without full download)
+        update_job_progress(job_id, 'processing', 50, 'Extracting clips in parallel...', 90)
+        
+        from concurrent.futures import ThreadPoolExecutor, as_completed
         
         extractor = BRollExtractor(output_dir=f"{output_dir}/clips")
         extracted_clips = []
         
-        for scene in plan.get('scenes', []):
+        def extract_clip_for_scene(scene):
+            """Extract clip for a single scene (runs in parallel)"""
             scene_num = scene.get('scene_number')
             scene_duration = scene.get('duration', 5)
             scene_desc = scene.get('scene_description', '')
-            keywords = scene.get('keywords', [])
             
             # Get best video
             best_video = None
@@ -227,7 +229,7 @@ def run_full_pipeline(self, job_id: str, user_id: str, script: str, duration: in
                     break
             
             if not best_video:
-                continue
+                return None
             
             try:
                 # Use existing broll_extractor to extract clip directly
@@ -243,15 +245,27 @@ def run_full_pipeline(self, job_id: str, user_id: str, script: str, duration: in
                 )
                 
                 if clips:
-                    extracted_clips.append({
+                    return {
                         'scene': scene_desc,
                         'scene_number': scene_num,
                         'path': clips[0]['path'],
                         'source_url': best_video['url']
-                    })
+                    }
             except Exception as e:
                 print(f"Error extracting clip for scene {scene_num}: {e}")
-                continue
+                return None
+        
+        # Extract clips in parallel (max 6 concurrent downloads)
+        with ThreadPoolExecutor(max_workers=6) as executor:
+            futures = {executor.submit(extract_clip_for_scene, scene): scene for scene in plan.get('scenes', [])}
+            
+            for future in as_completed(futures):
+                result = future.result()
+                if result:
+                    extracted_clips.append(result)
+                    print(f"✅ Extracted clip for scene {result['scene_number']}")
+        
+        print(f"\n✅ Total clips extracted: {len(extracted_clips)}")
         
         update_job_progress(job_id, 'processing', 60, f'{len(extracted_clips)} clips extracted', 60)
         
