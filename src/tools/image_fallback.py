@@ -123,10 +123,9 @@ CRITICAL: Stay LITERAL to the scene description. If it says "rocket launching", 
 Output ONLY the image prompt, nothing else."""
 
         try:
-            # Call LLM to generate prompt
+            # Call LLM to generate prompt (without temperature - not supported by CrewAI LLM wrapper)
             response = self.llm.call(
-                messages=[{"role": "user", "content": prompt_request}],
-                temperature=0.7
+                messages=[{"role": "user", "content": prompt_request}]
             )
             
             # Extract the prompt from response
@@ -135,6 +134,7 @@ Output ONLY the image prompt, nothing else."""
             else:
                 image_prompt = str(response).strip()
             
+            print(f"   ✅ AI-generated prompt: {image_prompt[:80]}...")
             return image_prompt
         
         except Exception as e:
